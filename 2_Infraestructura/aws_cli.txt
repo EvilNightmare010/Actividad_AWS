@@ -1,0 +1,29 @@
+# 1. Crear Bucket S3
+aws s3api create-bucket \
+    --bucket bucket-taller-datos-cli-$RANDOM \
+    --region us-east-2 \
+    --create-bucket-configuration LocationConstraint=us-east-2
+
+# 2. Obtener el ID de tu VPC por defecto y crear un Security Group
+VPC_ID=$(aws ec2 describe-vpcs --query "Vpcs[0].VpcId" --output text)
+SG_ID=$(aws ec2 create-security-group --group-name "taller_sg_cli_$RANDOM" --description "SG Taller CLI" --vpc-id $VPC_ID --query 'GroupId' --output text)
+echo "Security Group creado con ID: $SG_ID"
+
+# 3. Crear Instancia EC2
+aws ec2 run-instances \
+    --image-id ami-09b90e09742640522 \
+    --count 1 \
+    --instance-type t2.micro \
+    --security-group-ids $SG_ID \
+    --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=TallerEC2-CLI}]'
+
+# 4. Crear Base de Datos RDS (Integrada con Secrets Manager)
+aws rds create-db-instance \
+    --db-instance-identifier "taller-rds-cli-$RANDOM" \
+    --allocated-storage 20 \
+    --db-instance-class db.t3.micro \
+    --engine mysql \
+    --master-username adminuser \
+    --manage-master-user-password \
+    --vpc-security-group-ids $SG_ID \
+    --no-publicly-accessible
